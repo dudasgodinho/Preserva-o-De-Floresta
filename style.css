@@ -1,0 +1,55 @@
+* { box-sizing: border-box; margin: 0; }
+
+html, body {
+  height: 100%;
+  background: #14281b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: system-ui, sans-serif;
+}
+
+#jogo {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9)); /* mantém a proporção do slide */
+  line-height: 0;
+  transition: opacity .25s;
+}
+#jogo.trocando { opacity: 0; }
+
+#fundo { width: 100%; height: auto; display: block; user-select: none; -webkit-user-drag: none; }
+
+#botoes { position: absolute; inset: 0; }
+
+.area {
+  position: absolute;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.area:hover { background: rgba(255, 255, 255, .12); }
+.area:focus-visible { outline: 3px solid #ffd54a; }
+
+/* ---- modo de teste (tecla D) ---- */
+#jogo.debug .area {
+  background: rgba(255, 0, 0, .35);
+  border: 2px solid red;
+  pointer-events: none;
+}
+#jogo.debug { cursor: crosshair; }
+#caixa {
+  position: absolute;
+  border: 2px dashed #00e5ff;
+  background: rgba(0, 229, 255, .2);
+  pointer-events: none;
+}
+#medidor {
+  position: fixed;
+  left: 8px; bottom: 8px;
+  padding: 6px 10px;
+  background: #000c;
+  color: #fff;
+  font: 14px/1.4 monospace;
+  border-radius: 6px;
+}
