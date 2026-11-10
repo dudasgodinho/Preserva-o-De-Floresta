@@ -159,4 +159,328 @@ h2.win{color:var(--moss)} h2.lose{color:var(--clay)}
 }
 </style>
 </head>
- 
+<body>
+<div class="app">
+  <aside class="rail" aria-label="Seu progresso">
+    <div class="brand"><small>Quiz ambiental</small><strong class="serif">Preservação<br>da Floresta</strong></div>
+    <div class="player"><span class="label">Explorador</span><b id="nickShow">—</b></div>
+    <div class="meter">
+      <div class="meter-top"><span class="label">Vida da floresta</span><span id="pct">0%</span></div>
+      <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" id="bar"><i id="fill"></i></div>
+      <p class="rule">Acertou: +15% · Errou: −20%<br>100% = vitória · 0% = game over</p>
+    </div>
+    <ol class="trail" id="trail" aria-label="Etapas"></ol>
+  </aside>
+  <main class="stage"><section class="card" id="screen" aria-live="polite"></section></main>
+</div>
+<div class="trees" aria-hidden="true"></div>
+<noscript>Ative o JavaScript para jogar o quiz.</noscript>
+
+<script>
+/* ============ PERGUNTAS ============ */
+/* ok:true marca a resposta correta. A ordem das opções é sorteada a cada partida. */
+const QUIZ = [
+  { tema:"Lixo no chão",
+    texto:"Você chega a uma floresta que já foi cheia de vida. Hoje o rio está secando e há lixo espalhado por todo lado. Por onde começar?",
+    opcoes:[
+      {t:"Jogar mais lixo no chão, afinal o lugar já está sujo.", ok:false},
+      {t:"Chamar os amigos para ajudar na limpeza.", ok:true},
+      {t:"Recolher só o lixo que estiver no seu caminho e seguir viagem.", ok:false}],
+    boa:"Em grupo, a limpeza rende muito mais. Recolher só o que está no caminho ajuda um pouco, mas deixa o problema quase todo para trás.",
+    ruim:"A melhor escolha era chamar os amigos: a limpeza de uma área grande é muito mais rápida e eficiente em mutirão." },
+
+  { tema:"Destino do lixo",
+    texto:"Seus amigos chegaram e vocês juntaram uma boa parte do lixo. O que fazer com ele?",
+    opcoes:[
+      {t:"Enterrar o lixo perto das árvores.", ok:false},
+      {t:"Jogar no rio para a correnteza levar embora.", ok:false},
+      {t:"Separar o lixo para reciclar.", ok:true}],
+    boa:"Separar para reciclar evita nova poluição e dá outro destino aos materiais.",
+    ruim:"O certo era separar para reciclar. Enterrar contamina o solo e as raízes, e jogar no rio apenas leva a poluição para outro lugar." },
+
+  { tema:"Árvore jovem",
+    texto:"À sua frente, uma árvore jovem está começando a crescer. Qual é a melhor atitude?",
+    opcoes:[
+      {t:"Quebrar a árvore para abrir caminho.", ok:false},
+      {t:"Cuidar dela e colocar uma cerca para protegê-la.", ok:true},
+      {t:"Ignorar: ela cresce sozinha, não precisa de ninguém.", ok:false}],
+    boa:"Uma muda é frágil. Protegida, ela cresce, dá sombra, abriga animais e ajuda a manter o solo úmido.",
+    ruim:"Mudas são frágeis e podem ser pisadas ou quebradas. Cuidar e proteger é o que garante que ela vire uma árvore adulta." },
+
+  { tema:"Rio quase seco",
+    texto:"Você chega ao rio e vê que a água está quase desaparecendo. Algumas plantas ainda crescem nas margens. O que fazer?",
+    opcoes:[
+      {t:"Cortar as árvores que ainda estão de pé.", ok:false},
+      {t:"Não fazer nada: o rio se resolve sozinho.", ok:false},
+      {t:"Plantar novas árvores perto do rio e proteger as margens.", ok:true}],
+    boa:"A vegetação das margens (mata ciliar) segura o solo, evita que ele caia no rio e ajuda a manter a água.",
+    ruim:"Sem vegetação nas margens, a terra desmorona para dentro do rio e ele seca ainda mais. O certo era plantar e proteger." },
+
+  { tema:"Fogueira acesa",
+    texto:"Você encontra uma pequena fogueira acesa, sem ninguém por perto. O que faz?",
+    opcoes:[
+      {t:"Apagar a fogueira por completo, com água e terra, para evitar um incêndio.", ok:true},
+      {t:"Deixar acesa: é só uma fogueirinha.", ok:false},
+      {t:"Ir embora e torcer para o fogo apagar sozinho.", ok:false}],
+    boa:"Fogo pequeno pode virar incêndio em minutos. Se o fogo já estiver grande, não tente enfrentá-lo: ligue para os bombeiros (193).",
+    ruim:"Uma brasa esquecida pode incendiar a mata inteira. O certo era apagar por completo e, se o fogo estivesse grande, ligar para os bombeiros (193)." },
+
+  { tema:"Nascente",
+    texto:"A floresta está cada vez mais degradada. Entre as árvores, você encontra uma nascente escondida e cheia de lixo. E agora?",
+    opcoes:[
+      {t:"Jogar lixo dentro da nascente.", ok:false},
+      {t:"Ignorar a nascente e seguir caminho.", ok:false},
+      {t:"Limpar a nascente e protegê-la.", ok:true}],
+    boa:"É da nascente que o rio nasce. Cuidar dela é cuidar de toda a água que vem depois.",
+    ruim:"A nascente é o começo do rio: se ela fica suja ou seca, tudo o que vem depois sofre. O certo era limpar e proteger." },
+
+  { tema:"Animal preso",
+    texto:"Você vê um animal silvestre preso entre redes e restos de lixo. Qual é a melhor atitude?",
+    opcoes:[
+      {t:"Seguir em frente: não é problema seu.", ok:false},
+      {t:"Levar o animal para criar em casa.", ok:false},
+      {t:"Pedir ajuda ao guarda-florestal e devolver o animal à floresta.", ok:true}],
+    boa:"Profissionais sabem socorrer sem machucar o animal, e a floresta é o lugar dele.",
+    ruim:"Animal silvestre deve ficar na natureza, e mantê-lo em casa sem autorização é crime ambiental. O certo era chamar o guarda-florestal e devolvê-lo ao habitat." },
+
+  { tema:"Rede de pesca",
+    texto:"As plantas das margens reviveram! Mas você encontra uma rede de pesca abandonada, presa no rio. O que faz?",
+    opcoes:[
+      {t:"Retirar a rede do rio e dar o destino correto a ela.", ok:true},
+      {t:"Deixar a rede onde está.", ok:false},
+      {t:"Cortar a rede em pedaços e deixar tudo na água.", ok:false}],
+    boa:"Redes abandonadas prendem peixes, aves e outros bichos por muito tempo. Tirá-las do rio protege a vida da água.",
+    ruim:"Redes e pedaços de rede continuam capturando animais por anos. O certo era retirá-la do rio e descartá-la corretamente." },
+
+  { tema:"Decisão final",
+    texto:"Os animais voltaram e a floresta se recupera. Falta uma última decisão para garantir que tudo continue assim.",
+    opcoes:[
+      {t:"Voltar a destruir a floresta.", ok:false},
+      {t:"Plantar sementes nativas e continuar cuidando.", ok:true},
+      {t:"Deixar lixo perto das mudas.", ok:false}],
+    boa:"Espécies nativas são as que melhor se encaixam no ambiente e dão abrigo e alimento aos animais da região.",
+    ruim:"Para a floresta se manter viva, o caminho é plantar sementes nativas e continuar cuidando. Destruir ou sujar desfaz todo o trabalho." }
+];
+/* ============ ESTADO ============ */
+const LETRAS = ["A","B","C"];
+const VIDA_INICIAL = 50, GANHO = 15, PERDA = 20; // acerta +15, erra -20; 100% vence, 0% = game over
+const $screen = document.getElementById("screen");
+const $trail = document.getElementById("trail");
+let nick = "";
+let st = null; // estado da partida
+
+try { nick = localStorage.getItem("floresta_nick") || ""; } catch(e) {}
+
+function el(tag, cls, txt){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt != null) e.textContent = txt;
+  return e;
+}
+function shuffle(a){
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ============ PAINEL LATERAL ============ */
+function drawRail(){
+  document.getElementById("nickShow").textContent = (st && st.nick) || "—";
+  $trail.replaceChildren();
+  QUIZ.forEach((q, i) => {
+    const li = el("li", null);
+    const lbl = el("span", "lbl", q.tema);
+    li.appendChild(lbl);
+    const r = st && st.respostas[i];
+    if (r) li.className = r.certa ? "ok" : "no";
+    else if (st && st.etapa === i && !st.fim) li.className = "now";
+    $trail.appendChild(li);
+  });
+  const pct = st ? st.vida : VIDA_INICIAL;
+  document.getElementById("pct").textContent = pct + "%";
+  const fill = document.getElementById("fill");
+  fill.style.width = pct + "%";
+  fill.classList.toggle("low", pct <= 30);
+  document.getElementById("bar").setAttribute("aria-valuenow", pct);
+}
+
+/* ============ TELA INICIAL ============ */
+function telaInicio(){
+  st = null;
+  drawRail();
+  const box = el("div", "start");
+  box.appendChild(el("p", "kicker", "Missão na floresta"));
+  const h = el("h1", "serif", "Devolva a harmonia à floresta");
+  box.appendChild(h);
+  box.appendChild(el("p", "lead",
+    "A floresta já foi cheia de vida. Hoje o rio está secando, há lixo espalhado e muitos animais foram embora. " +
+    "Escolha a melhor atitude em cada situação. Cada decisão muda a vida da floresta: se ela chegar a 100% você vence, " +
+    "mas se chegar a 0% é game over, e isso pode acontecer antes mesmo da última pergunta."));
+
+  const form = el("form");
+  form.noValidate = true;
+  const lab = el("label", null, "Escolha seu nickname");
+  lab.htmlFor = "nick";
+  const row = el("div", "field");
+  const inp = document.createElement("input");
+  inp.id = "nick"; inp.type = "text"; inp.maxLength = 16; inp.autocomplete = "off";
+  inp.placeholder = "ex.: GuardiaoVerde"; inp.value = nick;
+  inp.setAttribute("aria-describedby", "nickErr");
+  const go = el("button", "btn", "Começar a missão");
+  go.type = "submit";
+  row.append(inp, go);
+  const err = el("p", "err"); err.id = "nickErr"; err.setAttribute("role", "alert");
+  form.append(lab, row, err, el("p", "hint", "De 2 a 16 caracteres. Seu nickname aparece durante o quiz e no resultado."));
+  form.addEventListener("submit", ev => {
+    ev.preventDefault();
+    const v = inp.value.trim().replace(/\s+/g, " ");
+    if (v.length < 2){ err.textContent = "Digite um nickname com pelo menos 2 caracteres."; inp.focus(); return; }
+    nick = v;
+    try { localStorage.setItem("floresta_nick", nick); } catch(e) {}
+    novaPartida();
+  });
+  box.appendChild(form);
+  $screen.replaceChildren(box);
+  inp.focus();
+}
+
+/* ============ PARTIDA ============ */
+function novaPartida(){
+  st = {
+    nick, etapa: 0, pontos: 0, vida: VIDA_INICIAL, desfecho: null, fim: false, travado: false,
+    respostas: [],
+    ordem: QUIZ.map(q => shuffle(q.opcoes))
+  };
+  telaPergunta();
+}
+
+function telaPergunta(){
+  st.travado = false;
+  drawRail();
+  const q = QUIZ[st.etapa];
+  const box = el("div");
+  box.appendChild(el("p", "kicker", "Pergunta " + (st.etapa + 1) + " de " + QUIZ.length + " · " + q.tema));
+  const h = el("h2", "serif", q.texto);
+  h.tabIndex = -1;
+  box.appendChild(h);
+
+  const list = el("div", "opts");
+  list.setAttribute("role", "group");
+  list.setAttribute("aria-label", "Alternativas");
+  st.ordem[st.etapa].forEach((o, i) => {
+    const b = el("button", "opt");
+    b.type = "button";
+    b.append(el("span", "k", LETRAS[i]), el("span", "txt", o.t), el("span", "mark", ""));
+    b.addEventListener("click", () => responder(i));
+    list.appendChild(b);
+  });
+  box.appendChild(list);
+  const fbSlot = el("div"); fbSlot.id = "fb";
+  box.appendChild(fbSlot);
+  $screen.replaceChildren(box);
+  h.focus({preventScroll:true});
+}
+
+function responder(i){
+  if (!st || st.travado || st.fim) return;
+  st.travado = true;
+  const ops = st.ordem[st.etapa];
+  const q = QUIZ[st.etapa];
+  const certa = ops[i].ok;
+  const idxOk = ops.findIndex(o => o.ok);
+  if (certa) st.pontos++;
+  st.vida = Math.max(0, Math.min(100, st.vida + (certa ? GANHO : -PERDA)));
+  const ultima = st.etapa === QUIZ.length - 1;
+  if (st.vida >= 100) st.desfecho = "win";
+  else if (st.vida <= 0) st.desfecho = "lose";
+  else if (ultima) st.desfecho = st.vida >= VIDA_INICIAL ? "win" : "lose";
+  st.respostas[st.etapa] = { certa, escolhida: ops[i].t, correta: ops[idxOk].t };
+
+  const btns = $screen.querySelectorAll(".opt");
+  btns.forEach((b, k) => {
+    b.disabled = true;
+    const mk = b.querySelector(".mark");
+    if (k === idxOk){ b.classList.add("ok"); mk.textContent = "✓"; }
+    else if (k === i){ b.classList.add("no"); mk.textContent = "✗"; }
+    else b.classList.add("dim");
+  });
+
+  const fb = el("div", "fb" + (certa ? "" : " bad"));
+  fb.appendChild(el("h3", null, certa ? "Boa escolha!" : "Essa não foi a melhor escolha"));
+  fb.appendChild(el("p", null, certa ? q.boa : q.ruim));
+  if (st.desfecho === "win" && !ultima)
+    fb.appendChild(el("p", null, "A vida da floresta chegou a 100%: a missão está cumprida!"));
+  if (st.desfecho === "lose" && !ultima)
+    fb.appendChild(el("p", null, "A vida da floresta chegou a 0%. Não deu para salvá-la."));
+  const nx = el("button", "btn", st.desfecho ? "Ver resultado" : "Próxima pergunta");
+  nx.type = "button";
+  nx.addEventListener("click", () => {
+    if (st.desfecho){ st.fim = true; telaFim(); }
+    else { st.etapa++; telaPergunta(); }
+  });
+  fb.appendChild(nx);
+  document.getElementById("fb").appendChild(fb);
+  drawRail();
+  nx.focus();
+}
+/* ============ RESULTADO ============ */
+function telaFim(){
+  drawRail();
+  const n = st.respostas.length, p = st.pontos;
+  const venceu = st.desfecho === "win";
+  let titulo, msg;
+  if (venceu){
+    titulo = "Você venceu!";
+    msg = "O rio voltou a correr, as árvores cresceram, os animais retornaram e a floresta voltou a ter vida. Parabéns, " + st.nick + "!";
+  } else {
+    titulo = "Game over";
+    msg = "A floresta não conseguiu se recuperar, " + st.nick + ". Sem árvores, água limpa e animais, o equilíbrio do ambiente foi perdido. Mas dá para tentar outra vez!";
+  }
+  const box = el("div");
+  box.appendChild(el("p", "kicker", venceu ? "Missão cumprida" : "Missão fracassada"));
+  const h = el("h2", "serif big " + (venceu ? "win" : "lose"), titulo); h.tabIndex = -1;
+  box.appendChild(h);
+  const sc = el("div", "score");
+  sc.append(el("b", "serif " + (venceu ? "" : "lose"), String(p)),
+            el("span", null, "de " + n + (n === 1 ? " resposta certa" : " respostas certas") + " · vida da floresta: " + st.vida + "%"));
+  box.appendChild(sc);
+  box.appendChild(el("p", "lead", msg));
+
+  const ul = el("ul", "review");
+  st.respostas.forEach((r, i) => {
+    const li = el("li");
+    li.appendChild(el("span", "m " + (r.certa ? "ok" : "no"), r.certa ? "✓" : "✗"));
+    const d = el("div");
+    d.appendChild(document.createTextNode((i + 1) + ". " + QUIZ[i].tema));
+    const s = el("small", null, r.certa ? r.escolhida : "Você escolheu: " + r.escolhida);
+    d.appendChild(s);
+    if (!r.certa) d.appendChild(el("small", null, "Melhor escolha: " + r.correta));
+    li.appendChild(d);
+    ul.appendChild(li);
+  });
+  box.appendChild(ul);
+
+  const again = el("button", "btn", "Jogar de novo");
+  again.type = "button";
+  again.addEventListener("click", telaInicio);
+  box.appendChild(again);
+  $screen.replaceChildren(box);
+  h.focus({preventScroll:true});
+  window.scrollTo(0, 0);
+}
+
+/* atalhos: A/B/C ou 1/2/3 */
+document.addEventListener("keydown", e => {
+  if (!st || st.travado || st.fim) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const m = { "1":0, "2":1, "3":2, "a":0, "b":1, "c":2 }[e.key.toLowerCase()];
+  if (m !== undefined) responder(m);
+});
+
+telaInicio();
+</script>
+</body>
+</html>
