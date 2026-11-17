@@ -122,6 +122,13 @@ h2.win{color:var(--moss)} h2.lose{color:var(--clay)}
 .review .m{font-weight:700}
 .review .ok{color:var(--moss)} .review .no{color:var(--clay)}
 .review small{display:block;color:var(--mute);margin-top:2px}
+.credits{
+  display:flex;justify-content:center;gap:16px;flex-wrap:wrap;
+  width:100%;margin-top:30px;padding:14px 8px 4px;
+  border-top:1px solid var(--line);
+  color:var(--mute);font-size:12px;letter-spacing:.04em;text-align:center;
+}
+.credits strong{color:var(--ink);font-weight:600}
 
 /* silhueta de pinheiros só com CSS */
 .trees{position:fixed;left:0;right:0;bottom:0;height:90px;pointer-events:none;z-index:0}
@@ -151,6 +158,7 @@ h2.win{color:var(--moss)} h2.lose{color:var(--clay)}
   .trail li.no::before{background:var(--clay)}
   .trail li.now::before{background:var(--amber);box-shadow:none}
   .stage{padding:28px 16px 120px;align-items:flex-start}
+  .credits{font-size:11px;gap:10px}
   .opt{font-size:16px;grid-template-columns:40px 1fr 22px;gap:12px}
   .opt .k{width:40px;height:40px}
 }
@@ -165,7 +173,7 @@ h2.win{color:var(--moss)} h2.lose{color:var(--clay)}
     <div class="brand"><small>Quiz ambiental</small><strong class="serif">Preservação<br>da Floresta</strong></div>
     <div class="player"><span class="label">Explorador</span><b id="nickShow">—</b></div>
     <div class="meter">
-      <div class="meter-top"><span class="label">Vida da floresta</span><span id="pct">0%</span></div>
+           <div class="meter-top"><span class="label">Vida da floresta</span><span id="pct">0%</span></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" id="bar"><i id="fill"></i></div>
       <p class="rule">Acertou: +15% · Errou: −20%<br>100% = vitória · 0% = game over</p>
     </div>
@@ -184,10 +192,9 @@ const QUIZ = [
     texto:"Você chega a uma floresta que já foi cheia de vida. Hoje o rio está secando e há lixo espalhado por todo lado. Por onde começar?",
     opcoes:[
       {t:"Jogar mais lixo no chão, afinal o lugar já está sujo.", ok:false},
-      {t:"Chamar os amigos para ajudar na limpeza.", ok:true},
-      {t:"Recolher só o lixo que estiver no seu caminho e seguir viagem.", ok:false}],
-    boa:"Em grupo, a limpeza rende muito mais. Recolher só o que está no caminho ajuda um pouco, mas deixa o problema quase todo para trás.",
-    ruim:"A melhor escolha era chamar os amigos: a limpeza de uma área grande é muito mais rápida e eficiente em mutirão." },
+      {t:"Chamar os amigos para ajudar na limpeza.", ok:true}],
+    boa:"Em grupo, a limpeza rende muito mais. A participação de todos ajuda a retirar o lixo e recuperar o ambiente.",
+    ruim:"A melhor escolha era chamar os amigos para ajudar na limpeza. Um mutirão permite recolher mais resíduos e cuidar melhor da floresta." },
 
   { tema:"Destino do lixo",
     texto:"Seus amigos chegaram e vocês juntaram uma boa parte do lixo. O que fazer com ele?",
@@ -261,6 +268,7 @@ const QUIZ = [
     boa:"Espécies nativas são as que melhor se encaixam no ambiente e dão abrigo e alimento aos animais da região.",
     ruim:"Para a floresta se manter viva, o caminho é plantar sementes nativas e continuar cuidando. Destruir ou sujar desfaz todo o trabalho." }
 ];
+
 /* ============ ESTADO ============ */
 const LETRAS = ["A","B","C"];
 const VIDA_INICIAL = 50, GANHO = 15, PERDA = 20; // acerta +15, erra -20; 100% vence, 0% = game over
@@ -340,7 +348,7 @@ function telaInicio(){
     if (v.length < 2){ err.textContent = "Digite um nickname com pelo menos 2 caracteres."; inp.focus(); return; }
     nick = v;
     try { localStorage.setItem("floresta_nick", nick); } catch(e) {}
-    novaPartida();
+        novaPartida();
   });
   box.appendChild(form);
   $screen.replaceChildren(box);
@@ -426,6 +434,7 @@ function responder(i){
   drawRail();
   nx.focus();
 }
+
 /* ============ RESULTADO ============ */
 function telaFim(){
   drawRail();
@@ -467,6 +476,20 @@ function telaFim(){
   again.type = "button";
   again.addEventListener("click", telaInicio);
   box.appendChild(again);
+
+  // CRÉDITOS: aparecem somente quando o jogo termina.
+  const credits = el("div", "credits");
+  credits.setAttribute("aria-label", "Créditos");
+
+  const programming = el("span");
+  programming.append("Programação: ", el("strong", null, "Eduarda"));
+
+  const styling = el("span");
+  styling.append("Estilização: ", el("strong", null, "Rayssa"));
+
+  credits.append(programming, styling);
+  box.appendChild(credits);
+
   $screen.replaceChildren(box);
   h.focus({preventScroll:true});
   window.scrollTo(0, 0);
@@ -477,7 +500,7 @@ document.addEventListener("keydown", e => {
   if (!st || st.travado || st.fim) return;
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   const m = { "1":0, "2":1, "3":2, "a":0, "b":1, "c":2 }[e.key.toLowerCase()];
-  if (m !== undefined) responder(m);
+  if (m !== undefined && m < st.ordem[st.etapa].length) responder(m);
 });
 
 telaInicio();
